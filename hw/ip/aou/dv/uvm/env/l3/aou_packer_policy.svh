@@ -64,6 +64,11 @@ class aou_packer_policy extends uvm_object;
   // Zero-credit CrdtGrant messages added to a flit, up to misc_per_half_max
   // per half (legal Misc no DUT sends).
   int unsigned      zero_grants;
+  // Percent of flits whose CrdtGrant (when credit is due) starts at G47 and
+  // ends in G0 of the next flit, after empty granules, instead of going early
+  // in the flit. 4.4 lets any message continue in G0 of the next flit; no DUT
+  // layout puts a Misc message there.
+  int unsigned      grant_span_pct;
   // Percent of WriteReqs held back until wdata_first_beats of their own
   // WriteData messages have gone first. AoU v0.8 5.7 does not order a
   // WriteReq against its WriteData, and another die may send the data first;
@@ -99,6 +104,7 @@ class aou_packer_policy extends uvm_object;
     hold_credited = 1'b0;
     prof_pct = 0;
     zero_grants = 0;
+    grant_span_pct = 0;
     best_fit = 1'b0;
     wdata_first_pct = 5;
     wdata_first_beats = 0;
@@ -140,12 +146,12 @@ class aou_packer_policy extends uvm_object;
   virtual function string convert2string();
     return $sformatf({"max_msgs=%0d hole=%0d%%/%0d start=%0d split=%0d span=%0d rand=%0d ",
                       "cred_only=%0d empty=%0d%% cred=%0d misc_half=%0d hold=%0d ",
-                      "prof=%0d%% zero_grants=%0d best_fit=%0d wdata_first=%0d%%/%0d hold_wreq=%b ",
-                      "bulk_last=%0d"},
+                      "prof=%0d%% zero_grants=%0d grant_span=%0d%% best_fit=%0d ",
+                      "wdata_first=%0d%%/%0d hold_wreq=%b bulk_last=%0d"},
                      max_msgs_per_flit, hole_pct, max_hole, start_granule, split_at,
                      allow_span, random_order, credit_only_flits, empty_flit_pct,
                      cred_method, misc_per_half_max, hold_credited, prof_pct,
-                     zero_grants, best_fit, wdata_first_pct, wdata_first_beats, hold_wreq_rps,
-                     bulk_last);
+                     zero_grants, grant_span_pct, best_fit, wdata_first_pct, wdata_first_beats,
+                     hold_wreq_rps, bulk_last);
   endfunction
 endclass

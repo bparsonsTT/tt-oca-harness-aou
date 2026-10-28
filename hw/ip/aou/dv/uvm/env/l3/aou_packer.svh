@@ -251,6 +251,7 @@ class aou_packer extends uvm_object;
     bit share_grant;    // ... except the initial CrdtGrant (after our ActivateAck)
     bit share_rsp;      // ... except WriteResp/ReadData (after our DeactivateReq)
     bit first_new = 1'b1;
+    bit span_grant;     // this flit's CrdtGrant goes at G47 (pol.grant_span_pct)
     aou_cred_method_e meth = cfg.pol.cred_method;
     f.seq = flit_cnt++;
     f.dir = AOU_L3_TX;
@@ -291,6 +292,8 @@ class aou_packer extends uvm_object;
     end
 
     if (meth == AOU_CRM_MIXED) meth = aou_cred_method_e'($urandom_range(0, 2));
+    span_grant = cfg.pol.grant_span_pct != 0 && !alone &&
+                 $urandom_range(0, 99) < int'(cfg.pol.grant_span_pct);
     if (adv_any() && (!alone || share_grant) && lnk.grant_due && gp + 2 <= AOU_GRANULES) begin
       aou_msg_crdtgrant g = mk_grant();
       lnk.grant_due = 1'b0;
@@ -308,7 +311,7 @@ class aou_packer extends uvm_object;
         f.msg_credit = mc;
       if ((meth == AOU_CRM_GRANT || (cfg.pol.cred_method == AOU_CRM_MIXED &&
                                      $urandom_range(0, 3) == 0)) &&
-          !alone && carry_g.size() == 0 && gp < AOU_GRANULES &&
+          !alone && !span_grant && carry_g.size() == 0 && gp < AOU_GRANULES &&
           misc_half[gp / AOU_HALF_G] < cfg.pol.misc_per_half_max) begin
         aou_msg_crdtgrant g = mk_grant();
         if (g != null) begin
@@ -363,6 +366,17 @@ class aou_packer extends uvm_object;
       first_new = 1'b0;
     end
     rsp_only = 1'b0;
+    // The flit's CrdtGrant at G47, continuing in G0 of the next flit.
+    if (span_grant && adv_any() && !lnk.grant_due && carry_g.size() == 0 &&
+        gp < AOU_GRANULES && misc_half[1] < cfg.pol.misc_per_half_max) begin
+      aou_msg_crdtgrant g = mk_grant();
+      if (g != null) begin
+        misc_half[1]++;
+        place(f, g, AOU_GRANULES - 1);
+        gp = AOU_GRANULES;
+        nmsgs++;
+      end
+    end
     for (int unsigned z = 0; z < cfg.pol.zero_grants; z++) begin
       aou_msg_crdtgrant zg;
       // A CrdtGrant, even an empty one, only once we may advertise (AOU-R29).
