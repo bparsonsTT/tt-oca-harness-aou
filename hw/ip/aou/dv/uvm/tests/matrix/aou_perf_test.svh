@@ -14,7 +14,9 @@
 // default 0), +perf_w_before_aw=0|1 (default 1), +perf_resp_fork=0|1 (remote
 // responder serves requests concurrently, default 0).
 // The remote die sends every full-strobe write beat as WriteDataFull
-// (+perf_remote_full_pct=<pct>, default 100), as the DUT does.
+// (+perf_remote_full_pct=<pct>, default 100), as the DUT does, and every
+// WriteReq ahead of its WriteData (+wdata_first_pct=0 unless given): the
+// windows measure the ordinary order, the same on every seed.
 // Managers keep +perf_slots outstanding (default 32): with the drivers'
 // default 16 the remote die's reads could not cover their round trip when
 // both sides read, and the bench, not the DUT, set the rate.
@@ -54,6 +56,7 @@ class aou_perf_test extends aou_dp_base_test;
     // Long windows (768 KB per link at the slowest link) must not trip the
     // traffic watchdog.
     cfg.drain_timeout = 2000000;
+    cfg.l3_cfg.pol.wdata_first_pct = 0;
     pin_knobs();
     outstanding();
     deep_credits();
