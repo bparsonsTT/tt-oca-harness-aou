@@ -289,8 +289,15 @@ class aou_invalid_actmsg_vseq extends aou_link_base_vseq;
   // A LinkReset that rises meanwhile ends the wait at once.
   task settle(int unsigned irq0);
     int unsigned n = 0;
-    while (!env.status.remote_tx_idle() && n++ < cfg.act_timeout) begin
-      if (irq_rises("INT_REQ_LINKRESET") > irq0) break;
+    while (!env.status.remote_tx_idle() && irq_rises("INT_REQ_LINKRESET") == irq0) begin
+      if (n++ == cfg.act_timeout) begin
+        // The remote die cannot hand the DUT what it still has: a stall, not
+        // one of the accepted endings.
+        `uvm_error(get_type_name(), $sformatf(
+                   "T1-L16: remote die still has messages for the DUT %0d cycles on",
+                   cfg.act_timeout))
+        break;
+      end
       wait_cycles(1);
     end
     for (int unsigned i = 0; i <= aou_t1_status::REACT_CYCLES &&
