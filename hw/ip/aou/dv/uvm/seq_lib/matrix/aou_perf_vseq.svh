@@ -158,6 +158,8 @@ class aou_perf_vseq extends aou_dp_vseq;
     k.align = aou_dp_knobs::DP_ALIGN_ALIGNED;
     k.strb = aou_dp_knobs::DP_STRB_FULL;
     k.ids = aou_dp_knobs::DP_ID_UNIQUE;
+    // As many IDs as slots, so no two outstanding transactions share an ID.
+    k.max_id = slots - 1;
     mon.writefull = 1'b1;
     case (mode)
       "lat": begin
