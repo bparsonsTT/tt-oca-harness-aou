@@ -10,8 +10,9 @@
 //   3. returned credits: the initial CrdtGrant after our ActivateAck, then
 //      header MsgCredit and/or CrdtGrant per the policy;
 //   4. credited messages whose class has credit for every granule (consumed
-//      at the start) and whose class the link state allows, oldest first or
-//      in random order across (RP, class) queues, never reordered within one;
+//      at the start) and whose class the link state allows, oldest first
+//      with requests and responses ahead of ReadData/WriteData (bulk_last),
+//      or in random order across (RP, class) queues, never reordered within one;
 //      a WriteReq the policy picked for wdata_first waits while its own
 //      WriteData goes ahead of it (held()).
 // The policy object shapes the layout; injection fields corrupt one flit.
@@ -192,6 +193,11 @@ class aou_packer extends uvm_object;
       cand.push_back(NQ);
     if (cand.size() == 0) return -1;
     if (cfg.pol.random_order) return cand[$urandom_range(0, cand.size() - 1)];
+    if (cfg.pol.bulk_last) begin
+      int ctl[$] = cand.find(c) with (c == NQ || !(c % AOU_CC_NUM inside
+                                       {int'(AOU_CC_WDATA), int'(AOU_CC_RDATA)}));
+      if (ctl.size() > 0) cand = ctl;
+    end
     foreach (cand[k]) begin
       int unsigned s = (cand[k] == NQ) ? misc_s[0] : qs[cand[k]][0];
       if (best < 0 || s < best_s) begin
