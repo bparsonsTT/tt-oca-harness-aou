@@ -82,6 +82,8 @@
 //          the DUT then holds all credited traffic on purpose (PR #26, see
 //          aou_t1_crd_block_chk). Any other cycle pauses the wait; a message of class c the DUT sends on
 //          x's wire RP, a reset, DISABLED or a new activation restarts it.
+//          A request the DUT accepted before a link close and sends after it
+//          is matched as that request, never as a later one of the same ID.
 //          A wait that reaches
 //          starve_cycles (env cfg crd_starve_cycles) is reported once. The wait
 //          covers sharing the TX with the other RPs and classes; the bound
@@ -138,6 +140,14 @@ class aou_t1_crd_flow_chk extends uvm_component;
   protected bit [9:0]    ar_pend[AOU_RP_MAX][$];
   protected bit [9:0]    aw_sent[AOU_RP_MAX][$];
   protected bit [9:0]    ar_sent[AOU_RP_MAX][$];
+  // Requests accepted but not yet sent when the link closed, or accepted
+  // while it was closed: the DUT still holds them and sends them, before any
+  // later request of the RP, once the link reopens. They are no work while
+  // the link is closed, but their requests must not be taken for a later
+  // request of the same ID. At most the DUT's outstanding requests; a reset
+  // empties them.
+  protected bit [9:0]    aw_stale[AOU_RP_MAX][$];
+  protected bit [9:0]    ar_stale[AOU_RP_MAX][$];
   // M-port responses accepted and not yet sent as WriteResp / last ReadData,
   // and M-port writes and reads open per ID.
   protected bit [9:0]    b_pend[AOU_RP_MAX][$];
@@ -339,6 +349,15 @@ class aou_t1_crd_flow_chk extends uvm_component;
       rp_wait[x][c] = 0;
       rp_rep[x][c] = 1'b0;
       if ($cast(q, m)) begin
+        // A request held over a link close goes first (see aw_stale).
+        if (c == AOU_CC_WREQ && drop_id(aw_stale[x], q.id)) begin
+          aw_sent[x].push_back(q.id);
+          return;
+        end
+        if (c == AOU_CC_RREQ && drop_id(ar_stale[x], q.id)) begin
+          ar_sent[x].push_back(q.id);
+          return;
+        end
         if (c == AOU_CC_WREQ && drop_aw(x, q.id)) begin
           aw_sent[x].push_back(q.id);
           return;
@@ -405,6 +424,20 @@ class aou_t1_crd_flow_chk extends uvm_component;
     end
   endfunction
 
+  // The link closed: x's requests not yet sent are held over (aw_stale), the
+  // ones sent keep waiting for their responses (aw_sent), so neither is
+  // mistaken for a later request of the same ID; every other wait of x ends.
+  protected function void close(int unsigned x);
+    if (aw_pend[x].size() != 0) aw_stale[x] = {aw_stale[x], aw_pend[x]};
+    if (ar_pend[x].size() != 0) ar_stale[x] = {ar_stale[x], ar_pend[x]};
+    aw_pend[x].delete();
+    aw_pend_beats[x].delete();
+    pend_beats[x] = 0;
+    ar_pend[x].delete();
+    b_pend[x].delete();
+    r_pend[x].delete();
+  endfunction
+
   protected function void forget(int unsigned x);
     aw_pend[x].delete();
     aw_pend_beats[x].delete();
@@ -443,6 +476,8 @@ class aou_t1_crd_flow_chk extends uvm_component;
   function void reset_flush();
     for (int unsigned x = 0; x < AOU_RP_MAX; x++) begin
       forget(x);
+      aw_stale[x].delete();
+      ar_stale[x].delete();
       forget_m(x);
       wr_fly[x] = 0;
       rd_fly[x] = 0;
@@ -460,6 +495,8 @@ class aou_t1_crd_flow_chk extends uvm_component;
   protected function void track(int unsigned x);
     if (s_vif[x].mon_cb.resetn !== 1'b1) begin
       forget(x);
+      aw_stale[x].delete();
+      ar_stale[x].delete();
       wr_fly[x] = 0;
       rd_fly[x] = 0;
       w_need[x] = 0;
@@ -475,7 +512,8 @@ class aou_t1_crd_flow_chk extends uvm_component;
     end
     if (s_vif[x].mon_cb.wvalid === 1'b1 && s_vif[x].mon_cb.wready === 1'b1) w_got[x]++;
     if (s_vif[x].mon_cb.bvalid === 1'b1 && s_vif[x].mon_cb.bready === 1'b1) begin
-      if (!drop_id(aw_sent[x], s_vif[x].mon_cb.bid))
+      // Same-ID responses come in request order: sent, held over, then new.
+      if (!drop_id(aw_sent[x], s_vif[x].mon_cb.bid) && !drop_id(aw_stale[x], s_vif[x].mon_cb.bid))
         void'(drop_aw(x, s_vif[x].mon_cb.bid));
       if (wr_fly[x] > 0) wr_fly[x]--;
     end
@@ -485,7 +523,7 @@ class aou_t1_crd_flow_chk extends uvm_component;
     end
     if (s_vif[x].mon_cb.rvalid === 1'b1 && s_vif[x].mon_cb.rready === 1'b1 &&
         s_vif[x].mon_cb.rlast === 1'b1) begin
-      if (!drop_id(ar_sent[x], s_vif[x].mon_cb.rid))
+      if (!drop_id(ar_sent[x], s_vif[x].mon_cb.rid) && !drop_id(ar_stale[x], s_vif[x].mon_cb.rid))
         void'(drop_id(ar_pend[x], s_vif[x].mon_cb.rid));
       if (rd_fly[x] > 0) rd_fly[x]--;
     end
@@ -560,7 +598,7 @@ class aou_t1_crd_flow_chk extends uvm_component;
       link_check();
       if (!link_open()) begin
         for (int unsigned x = 0; x < cfg.n_rp; x++) begin
-          forget(x);
+          close(x);
           if (was_open) forget_m(x);
         end
         was_open = 1'b0;
