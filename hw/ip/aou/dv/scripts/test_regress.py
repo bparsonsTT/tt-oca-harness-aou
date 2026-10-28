@@ -141,7 +141,9 @@ class Regress(unittest.TestCase):
         self.assertIn("reg-1x512-sp64: none of its testlists", p.stdout)
         self.assertIn("# build: 1 job(s)", p.stdout)
         self.assertNotEqual(self.regress("--lists", "bogus", "--dry-run").returncode, 0)
-        self.assertNotEqual(self.regress("--lists", "-perf", "--items", "smoke", "--dry-run").returncode, 0)
+        p = self.regress("--lists=-perf", "--items", "smoke", "--dry-run")
+        self.assertNotEqual(p.returncode, 0)
+        self.assertIn("without ITEMS", p.stdout + p.stderr)
 
     def test_run_summary_resume_rerun(self):
         items = ("--items", "smoke assertions")
