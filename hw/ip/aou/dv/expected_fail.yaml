@@ -45,12 +45,6 @@
     64/96 on PHY1 (58-87% of the model), on either PHY
 - test: aou_perf_test
   bug: BUGS/046
-  check_re: 'T1-P02: 2xmix-tp64_128\|[01]\|S1\|bw_mix_r2l\|r2l below target'
-  when_re: 'PERF_GATE 2xmix-tp64_128\|[01]\|S1\|'
-  requires: BUGS/046
-  note: remote-issued mix, the remote's writes held to the rate of its reads served by the capped TX link
-- test: aou_perf_test
-  bug: BUGS/046
   check_re: 'T1-P02: 4xmix4211-sp128\|0\|S[123]\|\w+\|l2r below target'
   when_re: 'PERF_GATE 4xmix4211-sp128\|0\|S[123]\|'
   note: 'FDI_PACK_WD 1024 at a 128 B FDI: the DUT TX link caps at 64 B/cycle (58-75% of the model)'
