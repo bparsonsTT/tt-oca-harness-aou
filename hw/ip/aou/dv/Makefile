@@ -516,7 +516,7 @@ regress:
 	python3 -I $(UVM_ROOT)/scripts/regress.py --sim $(SIM) --lsf $(LSF) --cov $(COV) \
 	  $(if $(filter-out default file,$(origin RID)),--rid '$(RID)') $(if $(RTL_PATCH),--rtl-patch '$(RTL_PATCH)') \
 	  $(if $(CONFIGS),--configs '$(CONFIGS)') $(if $(BENCHES),--benches '$(BENCHES)') \
-	  $(if $(ITEMS),--items '$(ITEMS)') $(if $(LISTS),--lists '$(LISTS)') $(if $(RUN_JOBS),-j $(RUN_JOBS)) $(if $(STEPS),--steps '$(STEPS)') \
+	  $(if $(ITEMS),--items '$(ITEMS)') $(if $(LISTS),--lists='$(LISTS)') $(if $(RUN_JOBS),-j $(RUN_JOBS)) $(if $(STEPS),--steps '$(STEPS)') \
 	  $(if $(RERUN_FAILED),--rerun-failed '$(RERUN_FAILED)') --cov-mem $(COV_MEM) --cov-el '$(COV_EL)' \
 	  $(if $(filter 1,$(DRY_RUN)),--dry-run)
 

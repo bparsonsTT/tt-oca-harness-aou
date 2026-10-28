@@ -605,7 +605,8 @@ def main(argv=None):
                                                  "bench whose testlist defines them (default: everything)")
     ap.add_argument("--lists", default="",
                     help="testlists to run, by name (errors, perf, registers, ...), comma separated: "
-                         "'all' is every list, '-name' drops one, e.g. 'all,-perf' (default: all)")
+                         "'all' is every list, '-name' drops one, e.g. 'all,-perf' (default: all); "
+                         "a value starting with '-' goes after '=', as in --lists=-perf")
     ap.add_argument("--rerun-failed", default="", metavar="RID",
                     help="run only the scenarios that had a FAIL or XPASS run in that earlier RID")
     ap.add_argument("--reseed", type=int, default=0, help="run_list.py --reseed N")

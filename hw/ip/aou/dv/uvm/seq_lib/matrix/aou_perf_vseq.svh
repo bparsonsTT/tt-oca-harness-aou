@@ -158,8 +158,8 @@ class aou_perf_vseq extends aou_dp_vseq;
     k.align = aou_dp_knobs::DP_ALIGN_ALIGNED;
     k.strb = aou_dp_knobs::DP_STRB_FULL;
     k.ids = aou_dp_knobs::DP_ID_UNIQUE;
-    // As many IDs as slots, so no two outstanding transactions share an ID. AXI IDs
-    // here are 10 bits, so at most 1024 slots can each have their own.
+    // aou_perf_seq gives each slot its own ID (its index), so no two outstanding
+    // transactions share one. AXI IDs here are 10 bits: at most 1024 slots.
     if (slots == 0 || slots > 1024)
       `uvm_fatal(get_type_name(),
                  $sformatf("+perf_slots=%0d: must be 1 to 1024 (one 10-bit ID per slot)", slots))
